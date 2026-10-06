@@ -47,7 +47,7 @@ pip install -r requirements.txt
 
 3. Launch the application:
 ```bash
-python markdown.py
+python graphein.py
 
 ```
 
