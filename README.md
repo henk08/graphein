@@ -4,7 +4,7 @@
 
 Tired of Electron-based Markdown editors eating hundreds of megabytes on disk just to render notes? Graphein brings a native-like, lightweight footprint (~11 MB installer, max 30 MB on disk) while offering full web-grade rendering for complex mathematics, code blocks, and diagrams.
 
-![image](assets/image.png)
+![image](assets/image_UI.png)
 
 ***
 
