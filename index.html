@@ -551,6 +551,8 @@
       height: 100%; 
       font-family: "Fira Code", Consolas, monospace; 
       font-size: var(--font-size-left); 
+      font-variant-ligatures: none; /* Voorkomt dat tekens samensmelten en de cursor verspringt */
+      font-feature-settings: "liga" 0, "calt" 0;
       padding: 0 !important; 
       background: var(--bg-color) !important;
       color: var(--text-color) !important;
@@ -567,8 +569,16 @@
       color: var(--text-color) !important;
       opacity: 0.5;
     }
-    .CodeMirror-scroll { padding: var(--pad-l-v) var(--pad-l-h) 0 var(--pad-l-h) !important; overflow-x: auto !important; overflow-y: auto !important; }
-    .CodeMirror-lines { padding-bottom: 35vh !important; }
+    .CodeMirror-scroll { 
+      padding: 0 !important; 
+      overflow-x: auto !important; 
+      overflow-y: auto !important; 
+    }
+
+    /* De padding hoort HIER te staan voor correcte coördinaten */
+    .CodeMirror-lines { 
+      padding: var(--pad-l-v) var(--pad-l-h) 35vh var(--pad-l-h) !important; 
+    }
     .CodeMirror-vscrollbar { right: 0 !important; } 
     .CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler { display: none !important; opacity: 0 !important; } 
 	.CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
@@ -592,7 +602,32 @@
 		  background-color: var(--selection-bg) !important;
 		  color: inherit !important; /* Behoudt de tekstkleur van het thema */
 		}
-			
+
+		/* Preview-tekst expliciet selecteerbaar maken */
+		#preview-pane,
+		#preview-pane * {
+		  -webkit-user-select: text;
+		  user-select: text;
+		  cursor: auto;
+		}
+	
+
+		#preview-pane a,
+		#preview-pane a *,
+		#preview-pane input[type="checkbox"],
+		#preview-pane button {
+		  cursor: pointer;
+		}
+
+		/* Afbeeldingen in het algemeen een neutrale pijl geven... */
+		#preview-pane img {
+		  cursor: default;
+		}
+
+		/* ...BEHALVE als de afbeelding in een link staat, dan roepen we het handje terug! */
+		#preview-pane a img {
+		  cursor: pointer;
+		}
 	
 	
 	.tab-bar-container {
@@ -1678,6 +1713,9 @@
     .spell-item.foreign .spell-word { color: inherit; }
     .spell-foreign { text-decoration-color: rgba(128, 128, 128, 0.8); }
     .spell-item small.valid-in { margin-left: 8px; font-size: 11px; opacity: 0.8; }
+    .spell-item small.valid-in { margin-left: 8px; font-size: 11px; opacity: 0.8; }
+    .spell-item small.valid-in { margin-left: 8px; font-size: 11px; opacity: 0.8; }
+    .spell-item small.valid-in { margin-left: 8px; font-size: 11px; opacity: 0.8; }
   </style>
 </head>
 <body>
@@ -1810,7 +1848,7 @@
   <div class="modal-overlay" id="spell-lang-modal">
     <div class="modal-box" style="width: 380px;">
       <h3>Spellcheck Languages</h3>
-      <p class="spell-note">Uses the dictionaries built into Windows. To add more languages, install them via Windows settings.</p>
+      <p class="spell-note">Uses the dictionaries built into Windows. To add more languages, intall them via Windows settings.</p>
       <div class="spell-lang-list" id="spell-lang-list"></div>
       <div class="spell-note" id="spell-lang-count" style="margin: 8px 0 0 0;"></div>
       <button class="btn" onclick="app.closeSpellLanguages()">Close</button>
@@ -1921,6 +1959,23 @@
       </div>
     </div>
   </div>
+  
+  <div class="modal-overlay" id="link-warning-modal">
+    <div class="modal-box" style="width: 400px;">
+      <h3>External Link</h3>
+      <p style="font-size: 13px; line-height: 1.5; margin: 15px 0 15px 0; opacity: 0.9;">
+        You are about to open an external website. Are you sure you want to continue?<br><br>
+        <strong id="link-warning-url" style="word-break: break-all; color: var(--link-color);"></strong>
+      </p>
+	  <p style="font-size: 11px; opacity: 0.6; margin-top: 15px; margin-bottom: 0;">Tip: Hold <b>Shift</b> while clicking to bypass this warning.</p>
+	  <p style="font-size: 6px; opacity: 0.6; margin-top: 15px; margin-bottom: 0;"> <br> </p>
+      <div style="display: flex; gap: 8px; justify-content: flex-start;">
+        <button class="btn" style="margin-top: 0; width: auto; padding: 6px 16px;" onclick="app.resolveLinkWarningModal(true)">Continue</button>
+        <button class="btn" style="margin-top: 0; background: transparent; border: 1px solid var(--border-color); color: var(--text-color); width: auto; padding: 6px 14px;" onclick="app.resolveLinkWarningModal(false)">Cancel</button>
+      </div>
+      
+    </div>
+  </div>
 
   <div id="search-widget">
     <span class="close-search" onclick="app.toggleSearchPanel()">✕</span>
@@ -1950,13 +2005,13 @@
       <div class="cs-grid"><div class="cs-vis" style="border-left: 3px solid var(--text-color); padding-left: 5px; opacity: 0.8;">Quote</div><div class="cs-raw"><code>> Quote</code></div></div>
       <div class="cs-grid"><div class="cs-vis"><code>Code</code></div><div class="cs-raw"><code>``` code ```</code></div></div>
       
-      <div class="cs-grid"><div class="cs-vis">Line break</div><div class="cs-raw"><code>&lt;br&gt;</code></div></div>
+      <div class="cs-grid"><div class="cs-vis">White rule</div><div class="cs-raw"><code>&lt;br&gt;</code></div></div>
       
       <div class="cs-grid"><div class="cs-vis">Horizontal rule</div><div class="cs-raw"><code>___</code></div></div>
-	  <div class="cs-grid"><div class="cs-vis">Highlight text</div><div class="cs-raw"><code>`text`</code></div></div>
+	  <div class="cs-grid"><div class="cs-vis">Hightlight text</div><div class="cs-raw"><code>`text`</code></div></div>
       <div class="cs-grid"><div class="cs-vis">Link</div><div class="cs-raw"><code>[title](url)</code></div></div>
 	  <div class="cs-grid"><div class="cs-vis">Image</div><div class="cs-raw"><code>![title](url/path)</code></div></div>
-	  <div class="cs-grid"><div class="cs-vis">Image aligned</div><div class="cs-raw"><code>&lt;img src="image.png" width="50%" align="left" /&gt; This text is next to the image! &lt;br clear="both" /&gt;</code></div></div>
+	  <div class="cs-grid"><div class="cs-vis">Image alligned</div><div class="cs-raw"><code>&lt;img src="image.png" width="50%" align="left" /&gt; This text is next to the image! &lt;br clear="both" /&gt;</code></div></div>
 	  <div class="cs-grid"><div class="cs-vis">Reference link</div><div class="cs-raw"><code>&lt;a href="#ReferenceHeader"&gt;link name&lt;/a&gt;</code></div></div>
       <div class="cs-grid"><div class="cs-vis">Table</div><div class="cs-raw"><code>| Syntax | Desc |<br>| --- | --- |<br>| Header | Title |<br>| Para | Text |</code></div></div>
       <div class="cs-grid"><div class="cs-vis"><del>Strike</del></div><div class="cs-raw"><code>~~strike~~</code></div></div>
@@ -2005,99 +2060,104 @@
 
   <script>
     CodeMirror.defineMode("markdown-clean", function() {
-      return {
-        startState: function() {
-          return { inCodeBlock: false, inMathBlock: false, headerLevel: 0, isTableRow: false, isTableSep: false };
-        },
-        token: function(stream, state) {
-          if (stream.sol()) {
-            state.headerLevel = 0;
-            state.isTableRow = false;
-            state.isTableSep = false;
+  return {
+    startState: function() {
+      return { inCodeBlock: false, inMathBlock: false, headerLevel: 0, isTableRow: false, isTableSep: false };
+    },
+    token: function(stream, state) {
+      if (stream.sol()) {
+        state.headerLevel = 0;
+        state.isTableRow = false;
+        state.isTableSep = false;
 
-            // 1. Code fences (``` of ~~~)
-            if (stream.match(/^(```|~~~).*/)) {
-              state.inCodeBlock = !state.inCodeBlock;
-              return "md-code-fence";
-            }
-            if (state.inCodeBlock) { stream.skipToEnd(); return "md-codeblock"; }
-
-            // 2. Math blocks ($$)
-            if (stream.match(/^\$\$\s*$/)) {
-              state.inMathBlock = !state.inMathBlock;
-              return "md-math";
-            }
-            if (state.inMathBlock) { stream.skipToEnd(); return "md-math"; }
-
-            // 3. Alleen als een regel echt de structuur van een tabel heeft
-            if (stream.string.indexOf('|') !== -1) {
-              if (/^\s*(?:>\s*)*\|?\s*:?-{2,}:?\s*\|/.test(stream.string)) {
-                state.isTableSep = true;
-                state.isTableRow = true;
-              } else if (/^\s*(?:>\s*)*\|.+?\|(?:\s*)$/.test(stream.string)) {
-                state.isTableRow = true;
-              }
-            }
-
-            // 4. Headers
-            var hMatch = stream.match(/^#{1,6}(?=\s|$)/);
-            if (hMatch) {
-              state.headerLevel = hMatch[0].length;
-              return "md-header-hash";
-            }
-
-            // 5. Quotes, lijsten, hr
-            if (stream.match(/^(\s*>)+\s*/)) return "md-quote";
-            if (stream.match(/^(\s*)([-*+]|\d+\.)(\s+\[[ xX]\])?\s+/)) return "md-list";
-            if (stream.match(/^[-*_]{3,}\s*$/)) return "md-hr";
-          }
-
-          if (state.inCodeBlock) { stream.skipToEnd(); return "md-codeblock"; }
-          if (state.inMathBlock) { stream.skipToEnd(); return "md-math"; }
-
-          // Tabel-scheidingsregel (| --- | --- |)
-          if (state.isTableSep) {
-            if (stream.eat('|')) return "md-table-pipe";
-            if (stream.match(/^[: -]+/)) return "md-table-dash";
-          }
-
-          // Inline code controleren VÓÓR tabelpipes (voorkomt kleuring van `ls | grep`)
-          if (stream.match(/^`[^`\n]+`/)) {
-            return state.headerLevel > 0 ? "md-header md-inline-code" : "md-inline-code";
-          }
-
-          // Alleen als de regel als echte tabel is gevalideerd kleurt '|' op
-          if (state.isTableRow && stream.eat('|')) {
-            return "md-table-pipe";
-          }
-
-          // Headers: structuur tokens
-          if (state.headerLevel > 0) {
-            if (stream.match(/^\*\*[^*]+?\*\*/)) return "md-header md-bold";
-            stream.match(/^[^*`\n|]+/);
-            return "md-header md-header-" + state.headerLevel;
-          }
-
-          // Overige inline elementen
-          if (stream.match(/^\${1,2}[^$\n]+?\${1,2}/)) return "md-math";
-          if (stream.match(/^\*\*[^* \t\n][^*\n]*?\*\*/) || stream.match(/^__[^_ \t\n][^_\n]*?__/)) return "md-bold";
-          if (stream.match(/^\*[^* \t\n][^*\n]*?\*/) || stream.match(/^_[^_ \t\n][^_\n]*?_/)) return "md-italic";
-          if (stream.match(/^~~[^~ \t\n][^~\n]*?~~/)) return "md-strike";
-          if (stream.match(/^<ins>[^<]*<\/ins>/i)) return "md-underline";
-          if (stream.match(/^<[^>\n]+>/)) return "md-tag";
-          if (stream.match(/^!?\[[^\]\n]*\]/)) return "md-link-text";
-          if (stream.match(/^\([^)\n]+\)/)) return "md-link-url";
-          if (stream.match(/^\[\^[^\]\n]+\]:?/)) return "md-footnote";
-
-          // Sla platte tekst over; stop alleen bij '|' als we daadwerkelijk in een tabelrij zitten
-          var skipRegex = state.isTableRow ? /^[^*`~<$\[!#\\>_\n|]+/ : /^[^*`~<$\[!#\\>_\n]+/;
-          if (!stream.match(skipRegex)) {
-            stream.next();
-          }
-          return null;
+        // 1. Code fences (``` of ~~~)
+        if (stream.match(/^(```|~~~).*/)) {
+          state.inCodeBlock = !state.inCodeBlock;
+          return "md-code-fence";
         }
-      };
-    });
+        if (state.inCodeBlock) { stream.skipToEnd(); return "md-codeblock"; }
+
+        // 2. Math blocks ($$)
+        if (stream.match(/^\$\$\s*$/)) {
+          state.inMathBlock = !state.inMathBlock;
+          return "md-math";
+        }
+        if (state.inMathBlock) { stream.skipToEnd(); return "md-math"; }
+
+        // 3. Alleen als een regel echt de structuur van een tabel heeft
+        if (stream.string.indexOf('|') !== -1) {
+          if (/^\s*(?:>\s*)*\|?\s*:?-{2,}:?\s*\|/.test(stream.string)) {
+            state.isTableSep = true;
+            state.isTableRow = true;
+          } else if (/^\s*(?:>\s*)*\|.+?\|(?:\s*)$/.test(stream.string)) {
+            state.isTableRow = true;
+          }
+        }
+
+        // 4. Headers
+        var hMatch = stream.match(/^#{1,6}(?=\s|$)/);
+        if (hMatch) {
+          state.headerLevel = hMatch[0].length;
+          return "md-header-hash";
+        }
+
+        // 5. Quotes, lijsten, hr
+        if (stream.match(/^(\s*>)+\s*/)) return "md-quote";
+        if (stream.match(/^(\s*)([-*+]|\d+\.)(\s+[[ xX]])?\s+/)) return "md-list";
+        if (stream.match(/^[-*_]{3,}\s*$/)) return "md-hr";
+      }
+
+      if (state.inCodeBlock) { stream.skipToEnd(); return "md-codeblock"; }
+      if (state.inMathBlock) { stream.skipToEnd(); return "md-math"; }
+
+      // Tabel-scheidingsregel (| --- | --- |)
+      if (state.isTableSep) {
+        if (stream.eat('|')) return "md-table-pipe";
+        if (stream.match(/^[: -]+/)) return "md-table-dash";
+      }
+
+      // Inline code controleren VÓÓR tabelpipes (voorkomt kleuring van `ls | grep`)
+      if (stream.match(/^`[^`\n]+`/)) {
+        return state.headerLevel > 0 ? "md-header md-inline-code" : "md-inline-code";
+      }
+
+      // Alleen als de regel als echte tabel is gevalideerd kleurt '|' op
+      if (state.isTableRow && stream.eat('|')) {
+        return "md-table-pipe";
+      }
+
+      // Headers: structuur tokens
+      if (state.headerLevel > 0) {
+        if (stream.match(/^\*\*[^*]+?\*\*/)) return "md-header md-bold";
+        if (stream.match(/^\*[^*]+?\*/)) return "md-header md-italic";
+        if (stream.match(/^[^*`\n|]+/)) return "md-header md-header-" + state.headerLevel;
+        
+        // VEILIGHEID: Consumeer 1 los karakter als de regex hierboven faalt (bijv. op ` of *)
+        stream.next();
+        return "md-header md-header-" + state.headerLevel;
+      }
+
+      // Overige inline elementen
+      if (stream.match(/^\${1,2}[^$\n]+?\${1,2}/)) return "md-math";
+      if (stream.match(/^\*\*[^* \t\n][^*\n]*?\*\*/) || stream.match(/^__[^_ \t\n][^_\n]*?__/)) return "md-bold";
+      if (stream.match(/^\*[^* \t\n][^*\n]*?\*/) || stream.match(/^_[^_ \t\n][^_\n]*?_/)) return "md-italic";
+      if (stream.match(/^~~[^~ \t\n][^~\n]*?~~/)) return "md-strike";
+      if (stream.match(/^<ins>[^<]*<\/ins>/i)) return "md-underline";
+      if (stream.match(/^<[^>\n]+>/)) return "md-tag";
+      if (stream.match(/^!?\[[^\]\n]*\]/)) return "md-link-text";
+      if (stream.match(/^\([^)\n]+\)/)) return "md-link-url";
+      if (stream.match(/^\[\^[^\]\n]+\]:?/)) return "md-footnote";
+
+      // Sla platte tekst over
+      var skipRegex = state.isTableRow ? /^[^*`~<$\[!#\\>_\n|]+/ : /^[^*`~<$\[!#\\>_\n]+/;
+      if (!stream.match(skipRegex)) {
+        // VEILIGHEID: Consumeer altijd gegarandeerd 1 karakter als er geen match is
+        stream.next();
+      }
+      return null;
+    }
+  };
+});
 	
 	
 	
@@ -2213,7 +2273,8 @@
     ],
       
       typingTimer: null,
-      imageCache: {}, 
+      imageCache: {},
+      _pendingImageCounter: 0, 
       adaptedImageCache: {},
       _adaptingKeys: new Set(),
       _cachedThemeBg: null,
@@ -2243,7 +2304,11 @@
         DOMPurify.addHook('afterSanitizeAttributes', (node) => {
           if (node.tagName === 'IMG') {
             node.removeAttribute('srcset');
-            const rawSrc = (node.getAttribute('src') || '').trim();
+            let rawSrc = (node.getAttribute('src') || '').trim();
+            // Nog niet opgeslagen plakafbeelding: direct uit het geheugen tonen
+            const pendingAsset = this._lookupPendingAsset(rawSrc);
+            if (pendingAsset && pendingAsset.data) { node.setAttribute('src', pendingAsset.data); return; }
+            if (pendingAsset && pendingAsset.saved) rawSrc = pendingAsset.saved;
             if (!rawSrc) {
               node.setAttribute('src', this._notFoundSvg);
               return;
@@ -2452,21 +2517,19 @@
                     event.preventDefault(); 
                     const blob = item.getAsFile();
                     const reader = new FileReader();
-                    reader.onload = async (e) => {
+                    reader.onload = (e) => {
                         const tab = this.getTab(this.activeTabId);
-                        const res = await window.pywebview.api.save_pasted_image(e.target.result, tab.filepath);
-                        if (res && res.success) {
-                            const imgSnippet = `\n<img src="${res.image_path}" width="100%" align="center" />\n<br clear="both" />\n`;
-                            cm.getDoc().replaceRange(imgSnippet, cm.getDoc().getCursor());
-                        } else {
-                            this.showAlert("Clipboard Error", res ? res.error : "Failed to process image.");
-                        }
+                        if (!tab) return;
+                        const name = this.addPendingImage(tab, e.target.result);
+                        cm.getDoc().replaceRange(this.imageSnippet(name), cm.getDoc().getCursor());
                     };
+
                     reader.readAsDataURL(blob);
                 }
             }
         });
 		this.setupEditorContextMenu();
+		this.setupPreviewCopy();
 		this.setupGlobalTooltips();
         this.setupResizers();
 		
@@ -2481,7 +2544,11 @@
           });
         }, { root: document.getElementById('preview-pane'), rootMargin: '150px 0px' });
 		
-		
+		new ResizeObserver(() => {
+		  if (this.editorInstance) {
+			this.editorInstance.refresh();
+		  }
+		}).observe(document.getElementById('left-pane'));
 		new ResizeObserver(() => this.checkTabOverflow()).observe(document.getElementById('tab-bar'));
 		const tabBar = document.getElementById('tab-bar');
         tabBar.addEventListener('wheel', (e) => {
@@ -2586,7 +2653,7 @@
         }
         return new Promise((resolve) => {
           document.getElementById('external-change-msg').innerHTML = 
-            `The file <b>${this.escapeHtml(filename)}</b> has been changed on disk. Do you want to reload it?`;
+            `The file <b>${this.escapeHtml(filename)}</b> Has been changed on disk. Do you want to reload it?`;
           document.getElementById('external-change-modal').style.display = 'flex';
           this._externalChangeResolver = resolve;
         });
@@ -2621,7 +2688,7 @@
 
             if (shouldReload) {
               // JA gekozen: bewaar eerst de huidige editorinhoud in backups vóórdat we overschrijven
-              await window.pywebview.api.backup_file(tab.filepath, tab.filename, tab.content);
+              await window.pywebview.api.backup_file(tab.filepath, tab.filename, this._contentForBackup(tab, tab.content));
 
               tab.content = newContent;
               tab.isDirty = false;
@@ -2708,7 +2775,7 @@
             }
             if (action === 'no') {
               // 'Don't Save' gekozen: sla het document voor de zekerheid toch op in de backupmap
-              await window.pywebview.api.backup_file(tab.filepath, tab.filename, tab.content);
+              await window.pywebview.api.backup_file(tab.filepath, tab.filename, this._contentForBackup(tab, tab.content));
             }
             tab.isDirty = false;
             this.updateTabUI();
@@ -2724,6 +2791,26 @@
 	
 	  _remoteImgPromptActive: false,
       _remoteImgResolver: null,
+	  _linkWarningResolver: null,
+
+      promptLinkWarning(url) {
+        if (window.pywebview && window.pywebview.api.play_alert_sound) {
+          window.pywebview.api.play_alert_sound();
+        }
+        return new Promise((resolve) => {
+          document.getElementById('link-warning-url').innerText = url;
+          document.getElementById('link-warning-modal').style.display = 'flex';
+          this._linkWarningResolver = resolve;
+        });
+      },
+
+      resolveLinkWarningModal(continueVisit) {
+        document.getElementById('link-warning-modal').style.display = 'none';
+        if (this._linkWarningResolver) {
+          this._linkWarningResolver(continueVisit);
+          this._linkWarningResolver = null;
+        }
+      },
 
       promptRemoteImages() {
         if (window.pywebview && window.pywebview.api.play_alert_sound) {
@@ -3398,15 +3485,10 @@
             // A. Afbeelding van het klembord
             if (res.type === 'image' && res.data) {
               const tab = this.getTab(this.activeTabId);
-              const saveRes = await window.pywebview.api.save_pasted_image(res.data, tab ? tab.filepath : null);
-              if (saveRes && saveRes.success) {
-                const snippet = `\n<img src="${saveRes.image_path}" width="100%" align="center" />\n<br clear="both" />\n`;
-                cm.getDoc().replaceSelection(snippet);
-              } else {
-                this.showAlert("Clipboard Error", saveRes ? saveRes.error : "Sla het bestand eerst op (Ctrl+S) om afbeeldingen te plakken.");
-              }
+              if (tab) cm.getDoc().replaceSelection(this.imageSnippet(this.addPendingImage(tab, res.data)));
               return;
-            } 
+            }
+
             // B. Tekst van het klembord
             else if (res.type === 'text' && res.data) {
               cm.getDoc().replaceSelection(res.data);
@@ -3761,6 +3843,364 @@
       }
     },
 	
+	_convertDomToMarkdown(node) {
+      if (!node) return '';
+
+      // 1. Platte tekst
+      if (node.nodeType === 3) {
+        return node.textContent;
+      }
+
+      // Alleen elementen (1) of document fragments (11) verwerken
+      if (node.nodeType !== 1 && node.nodeType !== 11) return '';
+
+      // Negeer hulpelementen, line-sync markers en alert iconen
+      if (node.classList) {
+        if (node.classList.contains('cm-sync-marker') ||
+            node.classList.contains('sync-img-overlay') ||
+            node.classList.contains('katex-ph') ||
+            node.classList.contains('markdown-alert-title') ||
+            node.classList.contains('footnote-backref')) {
+          return '';
+        }
+      }
+
+      // Hulpfunctie om recursief alle kinderen om te zetten
+      const getInner = () => {
+        let res = '';
+        for (let i = 0; i < node.childNodes.length; i++) {
+          res += this._convertDomToMarkdown(node.childNodes[i]);
+        }
+        return res;
+      };
+
+      // 2. KaTeX Wiskunde (Display en Inline)
+      if (node.classList) {
+        if (node.classList.contains('katex-block') || node.classList.contains('katex-display')) {
+          const ann = node.querySelector('annotation[encoding="application/x-tex"]');
+          if (ann) return '\n$$\n' + ann.textContent.trim() + '\n$$\n';
+          return '';
+        }
+        if (node.classList.contains('katex')) {
+          const ann = node.querySelector('annotation[encoding="application/x-tex"]');
+          if (ann) return '$' + ann.textContent.trim() + '$';
+          return '';
+        }
+        // Voorkom dat losse KaTeX-HTML/MathML takken dubbele tekst dumpen
+        if (node.classList.contains('katex-html')) {
+          const ann = node.parentElement?.querySelector('annotation[encoding="application/x-tex"]');
+          if (ann) return '$' + ann.textContent.trim() + '$';
+          return '';
+        }
+        if (node.classList.contains('katex-mathml')) {
+          return '';
+        }
+      }
+
+      // 3. Afbeeldingen
+      if (node.tagName === 'IMG') {
+        const src = node.getAttribute('data-orig-src') || node.getAttribute('data-blocked-src') || node.getAttribute('src') || '';
+        const alt = node.getAttribute('alt') || '';
+        const align = node.getAttribute('align');
+        const width = node.getAttribute('width');
+        if (align || width) {
+          let h = '<img src="' + src + '"';
+          if (width) h += ' width="' + width + '"';
+          if (align) h += ' align="' + align + '"';
+          h += ' />';
+          return h;
+        }
+        return '![' + alt + '](' + src + ')';
+      }
+
+      // 4. Links & Voetnootverwijzingen
+      if (node.tagName === 'A') {
+        const href = node.getAttribute('href') || '';
+        if (node.parentElement && node.parentElement.classList && node.parentElement.classList.contains('footnote-ref')) {
+          return '[^' + node.textContent.replace(/[\[\]]/g, '') + ']';
+        }
+        return '[' + getInner() + '](' + href + ')';
+      }
+
+      // 5. Codeblokken (<pre><code>)
+      if (node.tagName === 'PRE') {
+        const codeEl = node.querySelector('code');
+        let lang = '';
+        if (codeEl) {
+          const m = codeEl.className.match(/language-([a-zA-Z0-9_-]+)/);
+          if (m) lang = m[1];
+        }
+        // Strip de regelnummers (.line::before) en behoud de zuivere code
+        const lineEls = node.querySelectorAll('.line');
+        let codeText = '';
+        if (lineEls.length > 0) {
+          codeText = Array.from(lineEls).map(l => l.textContent).join('\n');
+        } else {
+          codeText = codeEl ? codeEl.textContent : node.textContent;
+        }
+        return '\n```' + lang + '\n' + codeText + '\n```\n';
+      }
+
+      // 6. Koppen (H1 t/m H6)
+      if (/^H[1-6]$/.test(node.tagName)) {
+        const level = parseInt(node.tagName[1], 10);
+        return '\n' + '#'.repeat(level) + ' ' + getInner().trim() + '\n\n';
+      }
+
+      // 7. Blockquotes & GitHub Alerts
+      if (node.tagName === 'BLOCKQUOTE') {
+        let alertType = '';
+        if (node.classList) {
+          const match = node.className.match(/markdown-alert-([a-z]+)/);
+          if (match) alertType = match[1].toUpperCase();
+        }
+        const inner = getInner().trim();
+        let lines = inner.split('\n');
+        if (alertType) {
+          lines.unshift('[!' + alertType + ']');
+        }
+        return '\n' + lines.map(l => '> ' + l).join('\n') + '\n\n';
+      }
+
+      // 8. Tabellen
+      if (node.tagName === 'TABLE') {
+        const rows = Array.from(node.querySelectorAll('tr'));
+        if (!rows.length) return '';
+        let md = '\n';
+        rows.forEach((tr, rIdx) => {
+          const cells = Array.from(tr.querySelectorAll('th, td'));
+          md += '| ' + cells.map(c => this._convertDomToMarkdown(c).trim()).join(' | ') + ' |\n';
+          if (rIdx === 0) {
+            md += '| ' + cells.map(() => '---').join(' | ') + ' |\n';
+          }
+        });
+        return md + '\n';
+      }
+
+      // 9. Lijsten & Taaklijsten
+      if (node.tagName === 'LI') {
+        const cb = node.querySelector('input[type="checkbox"]');
+        let prefix = '- ';
+        if (node.parentElement && node.parentElement.tagName === 'OL') {
+          const idx = Array.from(node.parentElement.children).indexOf(node) + 1;
+          prefix = idx + '. ';
+        }
+        if (cb) {
+          prefix += cb.checked ? '[x] ' : '[ ] ';
+        }
+        return prefix + getInner().trim() + '\n';
+      }
+      if (node.tagName === 'UL' || node.tagName === 'OL') {
+        return '\n' + getInner() + '\n';
+      }
+
+      // 10. Inline opmaak & Alinea's
+      const inner = getInner();
+
+      if (node.tagName === 'P') {
+        return '\n\n' + inner + '\n\n';
+      }
+      if (node.tagName === 'B' || node.tagName === 'STRONG') {
+        return inner.trim() ? '**' + inner + '**' : inner;
+      }
+      if (node.tagName === 'I' || node.tagName === 'EM') {
+        return inner.trim() ? '*' + inner + '*' : inner;
+      }
+      if (node.tagName === 'S' || node.tagName === 'DEL' || node.tagName === 'STRIKE') {
+        return inner.trim() ? '~~' + inner + '~~' : inner;
+      }
+      if (node.tagName === 'INS' || node.tagName === 'U') {
+        return inner.trim() ? '<ins>' + inner + '</ins>' : inner;
+      }
+      if (node.tagName === 'CODE') {
+        if (node.parentElement && node.parentElement.tagName === 'PRE') return inner;
+        return '`' + inner + '`';
+      }
+      if (node.tagName === 'BR') {
+        const clr = node.getAttribute('clear');
+        return clr ? '<br clear="' + clr + '" />\n' : '\n';
+      }
+      if (node.tagName === 'HR') {
+        return '\n---\n';
+      }
+      if (node.tagName === 'INPUT' && node.getAttribute('type') === 'checkbox') {
+        return '';
+      }
+
+      return inner;
+    },
+
+    getRawForPreviewSelection() {
+      const pane = document.getElementById('preview-pane');
+      const sel = window.getSelection();
+      if (!pane || !sel || sel.rangeCount === 0 || sel.isCollapsed) return '';
+      if (!pane.contains(sel.anchorNode) || !pane.contains(sel.focusNode)) return null;
+
+      const range = sel.getRangeAt(0);
+
+      // --- STRATEGIE 1: De selectie is (of zit binnen) 1 specifieke KaTeX-formule ---
+      const findMathContainer = (node) => {
+        if (!node) return null;
+        const el = node.nodeType === 1 ? node : node.parentElement;
+        return el ? el.closest('.katex-block, .katex-display, .katex') : null;
+      };
+
+      const startMath = findMathContainer(range.startContainer);
+      const endMath = findMathContainer(range.endContainer);
+
+      // Als zowel begin als einde binnen dezelfde formule vallen (ook bij dubbelklikken op een losse term daarbinnen)
+      if (startMath && endMath && (startMath === endMath || startMath.contains(endMath) || endMath.contains(startMath))) {
+        const mathContainer = startMath.closest('.katex-block, .katex-display') || 
+                              endMath.closest('.katex-block, .katex-display') || 
+                              startMath;
+        const ann = mathContainer.querySelector('annotation[encoding="application/x-tex"]');
+        if (ann) {
+          const tex = ann.textContent.trim();
+          const isBlock = mathContainer.classList.contains('katex-block') || 
+                          mathContainer.classList.contains('katex-display') || 
+                          mathContainer.closest('.katex-block, .katex-display') !== null;
+          return isBlock ? `$$\n${tex}\n$$` : `$${tex}$`;
+        }
+      }
+
+      // --- STRATEGIE 2: Selectie binnen een codeblok (<pre>) ---
+      const getPre = (node) => {
+        if (!node) return null;
+        const el = node.nodeType === 1 ? node : node.parentElement;
+        return el ? el.closest('pre') : null;
+      };
+      const startPre = getPre(range.startContainer);
+      const endPre = getPre(range.endContainer);
+
+      if (startPre && startPre === endPre) {
+        const frag = range.cloneContents();
+        const lineSpans = frag.querySelectorAll('.line');
+        if (lineSpans.length > 0) {
+          return Array.from(lineSpans).map(l => l.textContent).join('\n');
+        }
+        return frag.textContent;
+      }
+
+      // --- STRATEGIE 3: Algemene selectie (tekst, formules, lijsten, multi-block) ---
+      // Breid de selectiegrenzen veilig uit als ze halverwege een formule zijn afgesneden
+      const workingRange = range.cloneRange();
+      if (startMath) {
+        workingRange.setStartBefore(startMath);
+      }
+      if (endMath) {
+        workingRange.setEndAfter(endMath);
+      }
+
+      // Kloon de DOM en zet om naar Markdown
+      const frag = workingRange.cloneContents();
+      let md = this._convertDomToMarkdown(frag);
+
+      if (md && md.trim().length > 0) {
+        // Ruim overbodige witregels tussen blokken op en behoud zuivere enters
+        return md.replace(/\n{3,}/g, '\n\n').trim();
+      }
+
+      // --- STRATEGIE 4: Fallback naar originele regels uit CodeMirror ---
+      const cm = this.editorInstance;
+      if (!cm) return '';
+      const toEl = (n) => (n.nodeType === 1 ? n : n.parentElement);
+      let s = this.getLineFromPreviewElement(toEl(range.startContainer));
+      let e = this.getLineFromPreviewElement(toEl(range.endContainer));
+      const lastLine = cm.lineCount() - 1;
+
+      if (s < 0) s = 0;
+      if (e < 0) e = lastLine;
+      if (e < s) [s, e] = [e, s];
+      s = Math.min(s, lastLine);
+      e = Math.min(e, lastLine);
+
+      const lines = [];
+      for (let i = s; i <= e; i++) lines.push(cm.getLine(i));
+      while (lines.length && lines[0].trim() === '') lines.shift();
+      while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+      return lines.join('\n');
+    },
+
+    // Veilige klembord-helper voor de preview-contextknop
+    copyTextToClipboard(text) {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => this._fallbackCopy(text));
+      } else {
+        this._fallbackCopy(text);
+      }
+    },
+
+    _fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    },
+
+    // Toont dezelfde toolbar als links, maar met alleen de kopieerknop
+    showPreviewCopyToolbar(clientX, clientY, text) {
+      const tb = document.getElementById('editor-context-toolbar');
+      if (!tb) return;
+
+      tb.innerHTML = '';
+      const copyCfg = this.editorToolbarConfig.find(i => i.id === 'copy');
+      const btn = document.createElement('button');
+      btn.className = 'ect-btn';
+      btn.setAttribute('data-tooltip', 'Copy');
+      btn.innerHTML = copyCfg.icon;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.hideEditorToolbar();
+        this.copyTextToClipboard(text); // tekst vooraf berekend: selectie is dan al weg
+      });
+      tb.appendChild(btn);
+
+      tb.classList.remove('flip-bottom');
+      tb.classList.add('show');
+
+      const tbWidth = tb.offsetWidth;
+      const tbHeight = tb.offsetHeight;
+      let left = clientX - 18;
+      let top = clientY - tbHeight - 8;
+
+      if (left < 10) left = 10;
+      if (left + tbWidth > window.innerWidth - 15) left = window.innerWidth - tbWidth - 15;
+      if (top < 180) {
+        top = clientY + 8;
+        tb.classList.add('flip-bottom');
+      }
+
+      tb.style.left = Math.round(left) + 'px';
+      tb.style.top = Math.round(top) + 'px';
+    },
+
+
+    setupPreviewCopy() {
+      const pane = document.getElementById('preview-pane');
+      if (!pane) return;
+
+      // Rechtermuisklik met selectie in de preview: copy-only toolbar
+      pane.addEventListener('contextmenu', (e) => {
+        const text = this.getRawForPreviewSelection();
+        if (!text) return; // geen selectie: normaal contextmenu
+        e.preventDefault();
+        this.showPreviewCopyToolbar(e.clientX, e.clientY, text);
+      });
+
+      // Ctrl+C: kopieer ruwe markdown in plaats van de weergegeven tekst
+      document.addEventListener('copy', (e) => {
+        const text = this.getRawForPreviewSelection();
+        if (!text) return;
+        e.preventDefault();
+        e.clipboardData.setData('text/plain', text);
+      });
+    },
+
 	cacheImage(key, base64) {
         const keys = Object.keys(this.imageCache);
         if (keys.length > 50) delete this.imageCache[keys[0]]; // Max 50 afbeeldingen in RAM
@@ -4794,6 +5234,7 @@
           for (let img of imgs) {
             const origSrc = img.getAttribute('data-orig-src') || img.getAttribute('src');
             let rawData = this.imageCache[origSrc];
+            if (!rawData && origSrc && origSrc.startsWith('data:')) rawData = origSrc;
 
             if (!rawData && origSrc && !origSrc.startsWith('data:')) {
               if (/^https?:\/\//i.test(origSrc)) {
@@ -4906,6 +5347,7 @@
         document.addEventListener('mouseup', () => { 
             if(isResizingMain || isResizingSidebar) {
                 isResizingMain = false; isResizingSidebar = false; document.body.style.cursor = 'default';
+                if (this.editorInstance) this.editorInstance.refresh(); // <-- TOEVOEGEN
                 this.pushStateToPython();
             }
         });
@@ -5041,7 +5483,21 @@
 			  try {
 				const u = new URL(target.href, window.location.href);
 				if (['http:', 'https:', 'mailto:'].includes(u.protocol)) {
-				  window.pywebview.api.open_external_link(u.href);
+				  
+				  // Controleer of de link naar de lokale server wijst (interne bestanden)
+				  const isLocal = u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+				  
+				  // Bij lokale links óf als Shift is ingedrukt: open direct
+				  if (isLocal || e.shiftKey) {
+					window.pywebview.api.open_external_link(u.href);
+				  } else {
+					// Externe link: wacht op de keuze in de popup
+					const proceed = await this.promptLinkWarning(u.href);
+					if (proceed) {
+					  window.pywebview.api.open_external_link(u.href);
+					}
+				  }
+				  
 				} else {
 				  this.showAlert("Safety", "This link cannot be opened!");
 				}
@@ -5793,7 +6249,7 @@
           }
           if (action === 'no') {
             // 'Don't Save' gekozen: toch nog een veiligheidsbackup maken van de niet-opgeslagen tekst
-            await window.pywebview.api.backup_file(tab.filepath, tab.filename, tab.content);
+            await window.pywebview.api.backup_file(tab.filepath, tab.filename, this._contentForBackup(tab, tab.content));
           }
         }
 
@@ -6691,50 +7147,150 @@
       },
       async saveCurrent() {
         const tab = this.getTab(this.activeTabId);
-        if(!tab) return false;
+        if (!tab) return false;
         if (this.editorInstance && tab.id === this.activeTabId) {
           tab.content = this.editorInstance.getValue();
         }
-        if(tab.filepath) {
-          if(await window.pywebview.api.overwrite_file(tab.filepath, tab.content)) { 
-            tab.isDirty = false; 
-            this.updateTabUI(); 
+        if (tab.filepath) {
+          if (await this._writeTab(tab, tab.filepath)) {
+            tab.isDirty = false;
+            this.updateTabUI();
             return true;
           }
           return false;
-        } else {
-          return await this.saveAsCurrent();
         }
+        return await this.saveAsCurrent();
       },
+
       async saveAsCurrent() {
         const tab = this.getTab(this.activeTabId);
-        if(!tab) return false;
+        if (!tab) return false;
         if (this.editorInstance && tab.id === this.activeTabId) {
           tab.content = this.editorInstance.getValue();
         }
-        const res = await window.pywebview.api.save_file_dialog(tab.content);
-        if(res && res.success) {
-          tab.filepath = res.filepath; 
-          tab.filename = res.filename; 
-          tab.isDirty = false;
-          if (window.pywebview && window.pywebview.api.watch_file) {
-            window.pywebview.api.watch_file(tab.filepath);
-          }
-          if (tab.remoteImagesAllowed === true) {
-            await window.pywebview.api.save_image_permission(tab.filepath, true);
-          }
-          this.renderPreview(); 
-          this.updateTabUI(); 
-          this.pushStateToPython();
-          return true;
+        // Eerst het pad kiezen, dan pas schrijven: de afbeeldingen komen zo in de map naast het nieuwe bestand
+        const res = await window.pywebview.api.choose_save_path();
+        if (!res || !res.success) return false;
+        if (!(await this._writeTab(tab, res.filepath))) return false;
+
+        tab.filepath = res.filepath;
+        tab.filename = res.filename;
+        tab.isDirty = false;
+        if (window.pywebview && window.pywebview.api.watch_file) {
+          window.pywebview.api.watch_file(tab.filepath);
         }
-        return false;
+        if (tab.remoteImagesAllowed === true) {
+          await window.pywebview.api.save_image_permission(tab.filepath, true);
+        }
+        this.renderPreview();
+        this.updateTabUI();
+        this.pushStateToPython();
+        return true;
       },
+
+      // Plakafbeeldingen blijven in het geheugen tot het document wordt opgeslagen.
+      // Ze krijgen een tijdelijke naam (pending_image_N.png) die in tekst en preview werkt.
+      _assetsOf(tab) {
+        if (!tab.pendingAssets) tab.pendingAssets = new Map();
+        return tab.pendingAssets;
+      },
+
+      addPendingImage(tab, dataUrl) {
+        const name = `pending_image_${++this._pendingImageCounter}.png`;
+        this._assetsOf(tab).set(name, { data: dataUrl, saved: null });
+        return name;
+      },
+
+      imageSnippet(name) {
+        return `\n<img src="${name}" width="100%" align="center" />\n<br clear="both" />\n`;
+      },
+
+      _lookupPendingAsset(src) {
+        const tab = this.getTab(this.activeTabId);
+        if (!tab || !tab.pendingAssets || !src) return null;
+        return tab.pendingAssets.get(src) || null;
+      },
+
+      // Backups bevatten de niet-opgeslagen afbeeldingen zelf, anders gaan ze verloren bij een crash
+      _contentForBackup(tab, content) {
+        if (!tab.pendingAssets || !tab.pendingAssets.size) return content;
+        return content.replace(/pending_image_\d+\.png/g, (m) => {
+          const a = tab.pendingAssets.get(m);
+          return (a && a.data) ? a.data : m;
+        });
+      },
+
+      // Schrijft niet-opgeslagen afbeeldingen naar assets_<document>/ en vervangt de tijdelijke namen door de echte paden
+      async _resolvePendingAssets(tab, content, filepath) {
+        const assets = tab.pendingAssets;
+        if (!assets || !assets.size) return content;
+        const names = [...new Set(content.match(/pending_image_\d+\.png/g) || [])]
+          .filter(n => assets.has(n));
+        if (!names.length) return content;
+
+        const toWrite = names
+          .filter(n => assets.get(n).data && !assets.get(n).saved)
+          .map(n => ({ name: n, data: assets.get(n).data }));
+        if (toWrite.length) {
+          const res = await window.pywebview.api.save_pending_assets(filepath, toWrite);
+          if (!res || !res.success) throw new Error((res && res.error) || 'Could not save the pasted images.');
+          for (const [name, rel] of Object.entries(res.paths)) {
+            const a = assets.get(name);
+            if (a) { a.saved = rel; a.data = null; }
+          }
+        }
+
+        let out = content;
+        for (const n of names) {
+          const a = assets.get(n);
+          if (a && a.saved) out = out.split(n).join(a.saved);
+        }
+        return out;
+      },
+
+      // Past de editortekst aan na het opslaan, via zoek-en-vervang zodat de ongedaan-geschiedenis behouden blijft
+      _applyResolvedContent(tab, resolved) {
+        const cm = this.editorInstance;
+        if (cm && tab.id === this.activeTabId) {
+          const assets = this._assetsOf(tab);
+          this._isSwitchingTab = true;
+          cm.operation(() => {
+            for (const [name, a] of assets) {
+              if (!a.saved) continue;
+              const cur = cm.getSearchCursor(name);
+              while (cur.findNext()) cur.replace(a.saved);
+            }
+          });
+          this._isSwitchingTab = false;
+          tab.content = cm.getValue();
+          this.initTabWordCount(tab, tab.content);
+          this.updateWordCountUI();
+          this.renderPreview();
+        } else {
+          tab.content = resolved;
+          this.initTabWordCount(tab, resolved);
+        }
+      },
+
+      async _writeTab(tab, filepath) {
+        let content;
+        try {
+          content = await this._resolvePendingAssets(tab, tab.content, filepath);
+        } catch (e) {
+          this.showAlert("Image Error", e.message);
+          return false;
+        }
+        const ok = await window.pywebview.api.overwrite_file(filepath, content);
+        if (!ok) return false;
+        if (content !== tab.content) this._applyResolvedContent(tab, content);
+        return true;
+      },
+
       async autoBackupAll() {
         for(let tab of this.tabs) {
           if(tab.isDirty) {
             const content = (this.editorInstance && tab.id === this.activeTabId) ? this.editorInstance.getValue() : tab.content;
-            await window.pywebview.api.backup_file(tab.filepath, tab.filename, content);
+            await window.pywebview.api.backup_file(tab.filepath, tab.filename, this._contentForBackup(tab, content));
           }
         }
       },
@@ -6742,6 +7298,7 @@
         const sb = document.getElementById('sidebar'), rz = document.getElementById('resizer-sidebar');
         if (sb.style.display === 'block') { sb.style.display = 'none'; rz.style.display = 'none'; } 
         else { sb.style.display = 'block'; rz.style.display = 'block'; }
+        if (this.editorInstance) this.editorInstance.refresh(); // <-- TOEVOEGEN
         this.pushStateToPython();
       },
       setTheme(globalClass) {
