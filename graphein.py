@@ -602,6 +602,36 @@ class Api:
         except Exception as e:
             logger.warning(f"Couldn't verify file signature for '{filepath}': {e}")
             return None
+            
+    def save_pasted_image(self, data_url, md_filepath):
+        """Schrijft een geplakte afbeelding (base64) direct weg naar assets_<document>/ op schijf."""
+        if not md_filepath:
+            return {'success': False, 'error': 'The document has no file location yet.'}
+        try:
+            if not isinstance(data_url, str) or not data_url.startswith('data:image/') or ',' not in data_url:
+                return {'success': False, 'error': 'Invalid image data.'}
+
+            md_dir = os.path.dirname(md_filepath)
+            md_filename = os.path.splitext(os.path.basename(md_filepath))[0]
+            assets_dir_name = f"assets_{md_filename}"
+            assets_dir_path = os.path.join(md_dir, assets_dir_name)
+
+            data = base64.b64decode(data_url.split(',', 1)[1])
+            os.makedirs(assets_dir_path, exist_ok=True)
+
+            img_hash = hashlib.sha256(data).hexdigest()[:12]
+            img_name = f"img_{img_hash}.png"
+            img_path = os.path.join(assets_dir_path, img_name)
+
+            if not os.path.exists(img_path):
+                with open(img_path, 'wb') as f:
+                    f.write(data)
+
+            rel_path = urllib.parse.quote(f"{assets_dir_name}/{img_name}")
+            return {'success': True, 'image_path': rel_path, 'path': rel_path}
+        except Exception as e:
+            logger.error(f"Couldn't save pasted image: {e}")
+            return {'success': False, 'error': str(e)}
 
     def get_image_permission(self, filepath):
         """

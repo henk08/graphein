@@ -2302,17 +2302,26 @@
         });
 
         DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-          if (node.tagName === 'IMG') {
-            node.removeAttribute('srcset');
-            let rawSrc = (node.getAttribute('src') || '').trim();
-            // Nog niet opgeslagen plakafbeelding: direct uit het geheugen tonen
-            const pendingAsset = this._lookupPendingAsset(rawSrc);
-            if (pendingAsset && pendingAsset.data) { node.setAttribute('src', pendingAsset.data); return; }
-            if (pendingAsset && pendingAsset.saved) rawSrc = pendingAsset.saved;
-            if (!rawSrc) {
-              node.setAttribute('src', this._notFoundSvg);
-              return;
-            }
+		  if (node.tagName === 'IMG') {
+			node.removeAttribute('srcset');
+			let rawSrc = (node.getAttribute('src') || '').trim();
+			
+			// Geplakte afbeelding in het geheugen opzoeken
+			const pendingAsset = this._lookupPendingAsset(rawSrc);
+			if (pendingAsset) {
+			  node.setAttribute('data-orig-src', rawSrc);
+			  const actualData = pendingAsset.data || pendingAsset.saved || rawSrc;
+			  
+			  // Als adaptive coloring aan staat en gecacht is, direct die versie tonen (voorkomt flikkeren)
+			  const cached = this.getDisplayImageSrc(rawSrc);
+			  node.setAttribute('src', cached || actualData);
+			  return;
+			}
+
+			if (!rawSrc) {
+			  node.setAttribute('src', this._notFoundSvg);
+			  return;
+			}
 
             let norm = rawSrc.replace(/\\/g, '/');
             let isRemote = false;
@@ -2510,24 +2519,37 @@
         });
 
         this.editorInstance.on('paste', (cm, event) => {
-            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-            for (let index in items) {
-                const item = items[index];
-                if (item.kind === 'file' && item.type.startsWith('image/')) {
-                    event.preventDefault(); 
-                    const blob = item.getAsFile();
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const tab = this.getTab(this.activeTabId);
-                        if (!tab) return;
-                        const name = this.addPendingImage(tab, e.target.result);
-                        cm.getDoc().replaceRange(this.imageSnippet(name), cm.getDoc().getCursor());
-                    };
+			const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+			for (let index in items) {
+				const item = items[index];
+				if (item.kind === 'file' && item.type.startsWith('image/')) {
+					event.preventDefault(); 
+					const blob = item.getAsFile();
+					const reader = new FileReader();
+					reader.onload = async (e) => {
+						const tab = this.getTab(this.activeTabId);
+						if (!tab) return;
+						
+						if (tab.filepath) {
+							// Reeds opgeslagen bestand: direct opslaan in assets_<doc>/ via Python
+							const res = await window.pywebview.api.save_pasted_image(e.target.result, tab.filepath);
+							if (res && res.success) {
+								const relPath = (res.image_path || res.path || '').replace(/\\/g, '/');
+								cm.getDoc().replaceSelection(this.imageSnippet(relPath));
+							} else {
+								this.showAlert("Clipboard Error", res ? res.error : "Failed to save image.");
+							}
+						} else {
+							// Nog niet opgeslagen bestand: tijdelijke pending image in het geheugen
+							const name = this.addPendingImage(tab, e.target.result);
+							cm.getDoc().replaceSelection(this.imageSnippet(name));
+						}
+					};
 
-                    reader.readAsDataURL(blob);
-                }
-            }
-        });
+					reader.readAsDataURL(blob);
+				}
+			}
+		});
 		this.setupEditorContextMenu();
 		this.setupPreviewCopy();
 		this.setupGlobalTooltips();
@@ -3476,30 +3498,40 @@
     },
 	
 	async pasteFromClipboard(cm) {
-      cm.focus();
+	  cm.focus();
 
-      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_clipboard_data) {
-        try {
-          const res = await window.pywebview.api.get_clipboard_data();
-          if (res) {
-            // A. Afbeelding van het klembord
-            if (res.type === 'image' && res.data) {
-              const tab = this.getTab(this.activeTabId);
-              if (tab) cm.getDoc().replaceSelection(this.imageSnippet(this.addPendingImage(tab, res.data)));
-              return;
-            }
-
-            // B. Tekst van het klembord
-            else if (res.type === 'text' && res.data) {
-              cm.getDoc().replaceSelection(res.data);
-              return;
-            }
-          }
-        } catch (e) {
-          console.error("Native paste error:", e);
-        }
-      }
-    },
+	  if (window.pywebview && window.pywebview.api && window.pywebview.api.get_clipboard_data) {
+		try {
+		  const res = await window.pywebview.api.get_clipboard_data();
+		  if (res) {
+			if (res.type === 'image' && res.data) {
+			  const tab = this.getTab(this.activeTabId);
+			  if (tab) {
+				if (tab.filepath) {
+				  const saveRes = await window.pywebview.api.save_pasted_image(res.data, tab.filepath);
+				  if (saveRes && saveRes.success) {
+					const relPath = (saveRes.image_path || saveRes.path || '').replace(/\\/g, '/');
+					cm.getDoc().replaceSelection(this.imageSnippet(relPath));
+				  } else {
+					this.showAlert("Clipboard Error", saveRes ? saveRes.error : "Failed to save image.");
+				  }
+				} else {
+				  const name = this.addPendingImage(tab, res.data);
+				  cm.getDoc().replaceSelection(this.imageSnippet(name));
+				}
+			  }
+			  return;
+			}
+			else if (res.type === 'text' && res.data) {
+			  cm.getDoc().replaceSelection(res.data);
+			  return;
+			}
+		  }
+		} catch (e) {
+		  console.error("Native paste error:", e);
+		}
+	  }
+	},
 
     hideEditorToolbar() {
       const tb = document.getElementById('editor-context-toolbar');
@@ -7053,15 +7085,26 @@
       },
 
 	  async processImageElement(img, tab) {
-        const origSrc = img.getAttribute('data-orig-src') || img.getAttribute('src');
-        if (!origSrc || origSrc === this._notFoundSvg || origSrc === this._blockedSvg) return;
+		  const origSrc = img.getAttribute('data-orig-src') || img.getAttribute('src');
+		  if (!origSrc || origSrc === this._notFoundSvg || origSrc === this._blockedSvg) return;
 
-        if (origSrc.startsWith('data:')) {
-          if (this.settings.adaptiveImageColoring) {
-            this.adaptAndCacheImage(origSrc, origSrc, img);
-          }
-          return;
-        }
+		  // 1. Controleer eerst of dit een pending (geplakte) afbeelding in het geheugen is
+		  const pendingAsset = this._lookupPendingAsset(origSrc);
+		  if (pendingAsset && pendingAsset.data) {
+			if (this.settings.adaptiveImageColoring) {
+			  this.adaptAndCacheImage(origSrc, pendingAsset.data, img);
+			} else {
+			  img.src = pendingAsset.data;
+			}
+			return;
+		  }
+
+		  if (origSrc.startsWith('data:')) {
+			if (this.settings.adaptiveImageColoring) {
+			  this.adaptAndCacheImage(origSrc, origSrc, img);
+			}
+			return;
+		  }
 
         const cacheKey = origSrc + '::' + this.settings.themeGlobal;
         if (this.settings.adaptiveImageColoring && this.adaptedImageCache[cacheKey]) {
